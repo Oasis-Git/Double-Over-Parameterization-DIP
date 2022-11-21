@@ -4,6 +4,16 @@ import PIL.ImageDraw as ImageDraw
 import PIL.ImageFont as ImageFont
 from .common_utils import *
 
+
+def load_image_and_mask(img_path, mask_path):
+    img = pil_to_np(PIL.Image.open(img_path))
+    mask = pil_to_np(PIL.Image.open(mask_path))
+    assert img.shape == mask.shape
+    return {
+        "img":img,
+        "mask":mask
+    }
+
 def get_text_mask(for_image, sz=20):
     font_fname = '/usr/share/fonts/truetype/freefont/FreeSansBold.ttf'
     font_size = sz

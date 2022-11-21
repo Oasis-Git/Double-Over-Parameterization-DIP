@@ -1,12 +1,12 @@
 {
-  "name": "super resolution baseline",
+  "name": "inpainting baseline",
 
   "double parameterization": "False",
 
   "data": {
-    "factor": 4,
     "noisy":"True",
-    "data_path": "../data/"
+    "data_path": "../data/",
+    "mask_path": "../data"
   },
 
   "trainer": {
