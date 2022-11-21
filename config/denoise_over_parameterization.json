@@ -1,17 +1,16 @@
 {
-  "name": "super resolution baseline",
+  "name": "denoise over parameterization",
 
-  "double parameterization": "False",
+  "double parameterization": "True",
 
   "data": {
-    "factor":4,
     "noisy":"True",
     "data_path": "../data/"
   },
 
   "trainer": {
     "optimizer 1": "Adam",
-    "optimizer 2": "None",
+    "optimizer 2": "SGD",
     "l1": 1e-3,
     "l2": 1e-5,
     "number iter": 4000,

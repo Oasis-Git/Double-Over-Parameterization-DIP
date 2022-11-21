@@ -246,3 +246,8 @@ def get_optimizer(op:str, parameter, lr:float):
     elif op is "SGD":
         return torch.optim.SGD(params=parameter, lr=lr)
     assert "We do not support other optimizer"
+
+
+def load_image(path: str):
+    img = PIL.Image.open(path)
+    return pil_to_np(img)

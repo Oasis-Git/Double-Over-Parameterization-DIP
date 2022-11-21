@@ -4,7 +4,6 @@
   "double parameterization": "False",
 
   "data": {
-    "factor":4,
     "noisy":"True",
     "data_path": "../data/"
   },
