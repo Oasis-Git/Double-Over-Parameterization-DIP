@@ -1,0 +1,17 @@
+{
+  "name": "super resolution baseline",
+  "double parameterization": "False",
+  "data": {
+    "factor":4,
+    "noisy":"True",
+    "data_path": "../data/"
+  },
+  "trainer": {
+    "optimizer 1": "Adam",
+    "optimizer 2": "None",
+    "l1": 1e-3,
+    "l2": 1e-5,
+    "number iter": 4000,
+    "reg_noise_std": 0.05
+  }
+}
