@@ -27,17 +27,17 @@ dtype = torch.cuda.FloatTensor
 args = argparse.ArgumentParser(description='Training taxonomy expansion model')
 args.add_argument('--config', default=None, type=str, help='config file path (default: None)')
 args = args.parse_args()
-config = parse_args(args['config'])
+config = parse_args(args.config)
 
 log_dir = "../log/inpainting"
-if not os.path.exists(os.path.join(log_dir, config['name'])):
-    os.mkdir(os.path.join(log_dir, config['name']))
-writer = SummaryWriter(os.path.join(log_dir, config['name']))
+if not os.path.exists(os.path.join(log_dir, config.name)):
+    os.mkdir(os.path.join(log_dir, config.name))
+writer = SummaryWriter(os.path.join(log_dir, config.name))
 
 over_parameterization = config["over parameterization"]
 
 # data preparation
-imgs = load_image_and_mask(config['data_path'], config['mask_path'])
+imgs = load_image_and_mask(config.data_path, config.mask_path)
 
 # net preparation
 input_depth = 32
@@ -102,5 +102,5 @@ for i in range(0, config['num iter']):
     psnr = peak_signal_noise_ratio(imgs['HR_np'], torch_to_np(imgs))
     writer.add_scalar('PSNR', psnr)
 
-    if i % config['snapshot']:
+    if i % config['snapshot'] or i == config.num_iter-1:
         writer.add_figure(tag='output of epoch' + str(i), figure=torch_to_np(recon), global_step=i)

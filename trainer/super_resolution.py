@@ -10,14 +10,16 @@ import scipy.sparse
 import scipy
 import torch
 import torch.optim
+from torch.utils.tensorboard import SummaryWriter
+from skimage.metrics import peak_signal_noise_ratio
+from skimage.util import random_noise
 
 from models import *
 from models.downsampler import Downsampler
 from utils_dip.sr_utils import *
 from utils_dip.utils import *
+from utils_dip.common_utils import *
 from Parser import parse_args
-from torch.utils.tensorboard import SummaryWriter
-from skimage.metrics import peak_signal_noise_ratio
 
 
 torch.backends.cudnn.enabled = True
@@ -27,18 +29,18 @@ dtype = torch.cuda.FloatTensor
 args = argparse.ArgumentParser(description='Training taxonomy expansion model')
 args.add_argument('--config', default=None, type=str, help='config file path (default: None)')
 args = args.parse_args()
-config = parse_args(args['config'])
+config = parse_args(args.config)
 
 log_dir = "../log/super_resolution"
-if not os.path.exists(os.path.join(log_dir, config['name'])):
-    os.mkdir(os.path.join(log_dir, config['name']))
-writer = SummaryWriter(os.path.join(log_dir, config['name']))
+if not os.path.exists(os.path.join(log_dir, config.name)):
+    os.mkdir(os.path.join(log_dir, config.name))
+writer = SummaryWriter(os.path.join(log_dir, config.name))
 
-over_parameterization = config["over parameterization"]
+over_parameterization = config.over_parameterization
 
 # data preparation
-factor = config['factor']
-imgs = load_LR_HR_imgs_sr(config['data_path'], -1, factor, None)
+factor = config.factor
+imgs = load_LR_HR_imgs_sr(config.data_path, -1, factor, None)
 
 
 # net preparation
@@ -59,13 +61,15 @@ net = get_net(input_depth, 'skip', pad,
 
 downsampler = Downsampler(n_planes=3, factor=factor, kernel_type=KERNEL_TYPE, phase=0.5, preserve_size=True).type(dtype)
 
-# Losses
-mse = torch.nn.MSELoss().type(dtype)
+# Loss
+if config.loss == "L2":
+    loss = torch.nn.MSELoss().type(dtype)
+elif config.loss == "L1":
+    loss = torch.nn.L1Loss().type(dtype)
 
 c, h, w = imgs['LR_np'].shape
-eta = sparse_noise_3d(h, w)
-if config["noise"] is True:
-    img_LR_var = np_to_torch(eta+imgs['LR_np']).type(dtype)
+if config.noise is True:
+    img_LR_var = np_to_torch(random_noise(imgs['LR_np'], mode=config.noise_mode, amount=config.noise_amount)).type(dtype)
 else:
     img_LR_var = np_to_torch(imgs['LR_np']).type(dtype)
 
@@ -75,13 +79,14 @@ r_img_cor_p_torch.requires_grad = True
 r_img_cor_n_torch.requires_grad = True
 
 # Optimize
-optimizer1 = get_optimizer(config['optimizer 1'], net.parameters(), config['l1'])
-if config['optimizer 2'] is not None:
-    optimizer2 = get_optimizer(config['optimizer 2'], [r_img_cor_p_torch, r_img_cor_n_torch], config['l2'])
+optimizer1 = get_optimizer(config.optimizer_1, net.parameters(), config.l1)
+if config.optimizer_2 is not None:
+    optimizer2 = get_optimizer(config.optimizer_2, [r_img_cor_p_torch, r_img_cor_n_torch], config.l2)
 else:
     optimizer2 = None
+tv = config.tv
 
-for i in range(0, config['num iter']):
+for i in range(0, config.num_iter):
     optimizer1.zero_grad()
     if over_parameterization:
         optimizer2.zero_grad()
@@ -92,9 +97,12 @@ for i in range(0, config['num iter']):
     noise_recon = r_img_cor_torch.data.squeeze(0).cpu().numpy()
     data_loss = np.linalg.norm(recon - imgs['HR_np']) / np.linalg.norm(imgs['HR_np'])
     if over_parameterization:
-        total_loss = mse(out_LR + r_img_cor_torch, img_LR_var)
+        total_loss = loss(out_LR + r_img_cor_torch, img_LR_var)
     else:
-        total_loss = mse(out_LR, img_LR_var)
+        total_loss = loss(out_LR, img_LR_var)
+
+    if tv:
+        total_loss += 2e-6 * tv_loss(out_LR, beta=0.6)
 
     total_loss.backward()
     optimizer1.step()
@@ -103,7 +111,7 @@ for i in range(0, config['num iter']):
 
     writer.add_scalar('total loss', total_loss.item(), i)
     psnr = peak_signal_noise_ratio(imgs['HR_np'], torch_to_np(out_HR))
-    writer.add_scalar('PSNR', psnr)
+    writer.add_scalar('PSNR', psnr, i)
 
-    if i % config['snapshot']:
-        writer.add_figure(tag='output of epoch' + str(i), figure=torch_to_np(out_HR), global_step=i)
+    if i % config.snapshot == 0:
+        writer.add_image(tag='output of epoch' + str(i), img_tensor=torch_to_np(out_HR), global_step=i)
